@@ -37,7 +37,7 @@ public class MazeGenerator extends JFrame {
         boolean usesSeed = false;
         long seed = 0;
         
-        handleArgs(tileSize, usesSeed, seed, args);
+        handleArgs(args);
         
         
         maze = new Maze(mazeSizeY, mazeSizeX, tileSize, usesSeed, seed);
@@ -68,7 +68,7 @@ public class MazeGenerator extends JFrame {
         });
     }
 
-    private void handleArgs(int tileSize, boolean usesSeed, long seed, String[] args) {
+    private void handleArgs(String[] args) {
         if (args.length == 0) {
             return;
         }
