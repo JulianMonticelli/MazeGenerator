@@ -28,9 +28,9 @@ class MazePanel extends JPanel {
     @Override
     public void paintComponent(Graphics g) {
         super.paintComponent(g);
-        for (int x = 0; x < maze.isPath.length; x++) {
-            for (int y = 0; y < maze.isPath[x].length; y++) {
-                if (maze.isPath[x][y]) {
+        for (int x = 0; x < maze.mazeTile.length; x++) {
+            for (int y = 0; y < maze.mazeTile[x].length; y++) {
+                if (maze.mazeTile[x][y].isPath) {
                     g.setColor(Color.WHITE);
                 } else {
                     g.setColor(Color.BLACK);

@@ -6,6 +6,7 @@
 
 package mazegenerator;
 
+import java.util.LinkedList;
 import java.util.Random;
 
 /**
@@ -19,13 +20,15 @@ public class Maze {
     private static final int DOWN = 3;
     
     
-    private static Random rand = new Random();
+    private static Random rand;
     
-    private int mazeWidth;
-    private int mazeHeight;
+    private final int mazeWidth;
+    private final int mazeHeight;
     protected int mazeTileSize;
     
-    public boolean[][] isPath; 
+    public MazeTile[][] mazeTile;
+    
+    public LinkedList<MazeTile> tileStack;
     
     
     public Maze(int mazeWidth, int mazeHeight, int mazeTileSize,
@@ -34,11 +37,31 @@ public class Maze {
         this.mazeHeight = mazeHeight;
         this.mazeTileSize = mazeTileSize;
         
+        if (usesSeed) {
+            this.rand = new Random(seed);
+        } else {
+            this.rand = new Random();
+        }
+        
+        tileStack = new LinkedList<>();
+        
         // x, y coordinates
-        isPath = new boolean[mazeWidth][mazeHeight];
+        mazeTile = new MazeTile[mazeWidth][mazeHeight];
+        for (int x = 0; x < mazeTile.length; x++) {
+            for (int y = 0; y < mazeTile[x].length; y++) {
+                mazeTile[x][y] = new MazeTile(x, y);
+            }
+        }
     }
     
+    
+    /***************************************************************************
+     * Generates a maze based on constructed object variables. Handles adding
+     * the start and end of the maze on top of calling recursive generation.
+     */
     public void generateMaze() {
+        
+        // Add start tile
         int xStart = 0;
         int yStart = 0;
         
@@ -48,10 +71,13 @@ public class Maze {
             xStart = rand.nextInt(mazeWidth-1) + 1;
         }
         
-        isPath[xStart][yStart] = true;
+        mazeTile[xStart][yStart].isPath = true;
         
+        // Begin recursion from start tile
         generateMaze(xStart, yStart);
         
+        
+        // Generate an end tile
         int xEnd = mazeWidth-1;
         int yEnd = mazeHeight-1;
         
@@ -60,75 +86,107 @@ public class Maze {
         if (xStart == 0) {
             while (!endIsValid) {
                 xEnd = rand.nextInt(mazeWidth-1) + 1;
-                if (isPath[xEnd][yEnd-1]) {
+                if (mazeTile[xEnd][yEnd-1].isPath) {
                     endIsValid = true;
                 }
             }
         } else {
             while (!endIsValid) {
                 yEnd = rand.nextInt(mazeHeight-1) + 1;
-                if (isPath[xEnd-1][yEnd]) {
+                if (mazeTile[xEnd-1][yEnd].isPath) {
                     endIsValid = true;
                 }
             }
         }
         
-        isPath[xEnd][yEnd] = true;
+        mazeTile[xEnd][yEnd].isPath = true;
         
     }
     
-    private void generateMaze(int currentX, int currentY) {
-        isPath[currentX][currentY] = true;
+    
+    /***************************************************************************
+     * Uses a randomized DFS algorithm to generate a confusing maze
+     * @param currentX Current path tile we're recursing from
+     * @param currentY Current path tile we're recursing from
+     */
+    private void generateMaze(int startX, int startY) {
         
-        boolean checkedLeft = false;
-        boolean checkedRight = false;
-        boolean checkedUp = false;
-        boolean checkedDown = false;
+        tileStack.add(mazeTile[startX][startY]);
         
+        // Iterative DFS approach - beats recursive because no need to set
+        // a larger stack size for larger entries.
         
-        // Generate, randomly, next path piece
-        while(!checkedLeft || !checkedRight || !checkedUp || !checkedDown) {
-            int wayToGo = rand.nextInt(4);
-            switch(wayToGo) {
-                case LEFT:
-                    if (isValidTile(currentX-1, currentY, wayToGo)) {
-                        generateMaze(currentX-1, currentY);
-                    }
-                    checkedLeft = true;
-                    break;
-                case RIGHT:
-                    if (isValidTile(currentX+1, currentY, wayToGo)) {
-                        generateMaze(currentX+1, currentY);
-                    }
-                    checkedRight = true;
-                    break;
-                case UP:
-                    if (isValidTile(currentX, currentY+1, wayToGo)) {
-                        generateMaze(currentX, currentY+1);
-                    }
-                    checkedUp = true;
-                    break;
-                case DOWN:
-                    if (isValidTile(currentX, currentY-1, wayToGo)) {
-                        generateMaze(currentX, currentY-1);
-                    }
-                    checkedDown = true;
-                    break;
+        while (!tileStack.isEmpty()) {
+            // Set that current tile is a path (even if it already is)
+            MazeTile tile = tileStack.peek();
+            tile.isPath = true;
+            
+            int currentX = tile.xPos;
+            int currentY = tile.yPos;
+            
+            // If we need to further check different directions, to expand our
+            // path, then do so.
+            if (!tile.checkedLeft || !tile.checkedRight
+                    || !tile.checkedUp || !tile.checkedDown) {
+                int wayToGo = rand.nextInt(4);
+                switch(wayToGo) {
+                    case LEFT:
+                        if (isValidTile(currentX-1, currentY, wayToGo)) {
+                            tileStack.push(mazeTile[currentX-1][currentY]);
+                        }
+                        tile.checkedLeft = true;
+                        break;
+                    case RIGHT:
+                        if (isValidTile(currentX+1, currentY, wayToGo)) {
+                            tileStack.push(mazeTile[currentX+1][currentY]);
+                        }
+                        tile.checkedRight = true;
+                        break;
+                    case UP:
+                        if (isValidTile(currentX, currentY+1, wayToGo)) {
+                            tileStack.push(mazeTile[currentX][currentY+1]);
+                        }
+                        tile.checkedUp = true;
+                        break;
+                    case DOWN:
+                        if (isValidTile(currentX, currentY-1, wayToGo)) {
+                            tileStack.push(mazeTile[currentX][currentY-1]);
+                        }
+                        tile.checkedDown = true;
+                        break;
+                }
+            } else { // Otherwise, this tile can be removed from the stack
+                tileStack.pop();
             }
         }
-        // Bactrack if there is no way to go
     }
 
+    
+    /***************************************************************************
+     * Determines if a tile we are considering placing is valid
+     * @param x The x value of the tile that is being considered
+     * @param y The y value of the tile that is being considered
+     * @param wayToGo The direction we are heading
+     * @return True if the tile is valid, otherwise false
+     */
     private boolean isValidTile(int x, int y, int wayToGo) {
         if (x <= 0 || y <= 0)
             return false;
         if (x >= mazeWidth - 1 || y >= mazeHeight - 1)
             return false;
-        if (isPath[x][y])
+        if (mazeTile[x][y].isPath)
             return false;
         return isValidDirection(x, y, wayToGo);
     }
 
+    /***************************************************************************
+     * Determines if the tile is valid to place, considering we are going in a
+     * certain direction.
+     * @param x The x value of the tile that is being considered
+     * @param y The y value of the tile that is being considered
+     * @param wayToGo The direction we are heading
+     * @return True if the tile is valid, otherwise false
+     */
     private boolean isValidDirection(int x, int y, int wayToGo) {
         int directNeighborCount = 0;   
         switch (wayToGo) {
@@ -149,28 +207,40 @@ public class Maze {
         }
     }
     
+    /***************************************************************************
+     * Determines if left center of the tile has no path
+     * @param x The x value of the tile that is being considered
+     * @param y The y value of the tile that is being considered
+     * @return True if there are no conflicting tiles
+     */
     private boolean validLeftCenter(int x, int y) {
         if (x > 0) {
-            if (isPath[x-1][y]) {
+            if (mazeTile[x-1][y].isPath) {
                 return false;
             }
         }
         return true;
     }
     
+    /***************************************************************************
+     * Determines if left side of the tile has no path
+     * @param x The x value of the tile that is being considered
+     * @param y The y value of the tile that is being considered
+     * @return True if there are no conflicting tiles
+     */
     private boolean validLeft(int x, int y) {
         // Take care of left side
         if (x > 0) {
-            if (isPath[x-1][y]) {
+            if (mazeTile[x-1][y].isPath) {
                 return false;
             }
             if (y > 0) {
-                if (isPath[x-1][y-1]) {
+                if (mazeTile[x-1][y-1].isPath) {
                     return false;
                 }
             }
             if (y < mazeHeight-1) {
-                if (isPath[x-1][y+1]) {
+                if (mazeTile[x-1][y+1].isPath) {
                     return false;
                 }
             }
@@ -178,28 +248,40 @@ public class Maze {
         return true;
     }
     
+    /***************************************************************************
+     * Determines if right center of the tile has no path
+     * @param x The x value of the tile that is being considered
+     * @param y The y value of the tile that is being considered
+     * @return True if there are no conflicting tiles
+     */
     private boolean validRightCenter(int x, int y) {
         if (x < mazeWidth-1) {
-            if (isPath[x+1][y]) {
+            if (mazeTile[x+1][y].isPath) {
                 return false;
             }
         }
         return true;
     }
     
+    /***************************************************************************
+     * Determines if right side of the tile has no path
+     * @param x The x value of the tile that is being considered
+     * @param y The y value of the tile that is being considered
+     * @return True if there are no conflicting tiles
+     */
     private boolean validRight(int x, int y) {
         // Take care of right side
         if (x < mazeWidth-1) {
-            if (isPath[x+1][y]) {
+            if (mazeTile[x+1][y].isPath) {
                 return false;
             }
             if (y > 0) {
-                if (isPath[x+1][y-1]) {
+                if (mazeTile[x+1][y-1].isPath) {
                     return false;
                 }
             }
             if (y < mazeHeight-1) {
-                if (isPath[x+1][y+1]) {
+                if (mazeTile[x+1][y+1].isPath) {
                     return false;
                 }
             }
@@ -207,28 +289,41 @@ public class Maze {
         return true;
     }
     
+    
+    /***************************************************************************
+     * Determines if upper center of the tile has no path
+     * @param x The x value of the tile that is being considered
+     * @param y The y value of the tile that is being considered
+     * @return True if there are no conflicting tiles
+     */
     private boolean validUpCenter(int x, int y) {
         if (y < mazeHeight - 1) {
-            if (isPath[x][y+1]) {
+            if (mazeTile[x][y+1].isPath) {
                 return false;
             }
         }
         return true;
     }
     
+    /***************************************************************************
+     * Determines if upper side of the tile has no path
+     * @param x The x value of the tile that is being considered
+     * @param y The y value of the tile that is being considered
+     * @return True if there are no conflicting tiles
+     */
     private boolean validUp(int x, int y) {
         // Take care of up and down
         if (y < mazeHeight - 1) {
-            if (isPath[x][y+1]) {
+            if (mazeTile[x][y+1].isPath) {
                 return false;
             }
             if (x < mazeWidth-1) {
-                if (isPath[x+1][y+1]) {
+                if (mazeTile[x+1][y+1].isPath) {
                     return false;
                 }
             }
             if (x > 0) {
-                if (isPath[x-1][y+1]) {
+                if (mazeTile[x-1][y+1].isPath) {
                     return false;
                 }
             }
@@ -236,28 +331,40 @@ public class Maze {
         return true;
     }
     
+    /***************************************************************************
+     * Determines if lower center of the tile has no path
+     * @param x The x value of the tile that is being considered
+     * @param y The y value of the tile that is being considered
+     * @return True if there are no conflicting tiles
+     */
     private boolean validDownCenter(int x, int y) {
         if (y > 0) {
-            if (isPath[x][y-1]) {
+            if (mazeTile[x][y-1].isPath) {
                 return false;
             }
         }
         return true;
     }
     
+    /***************************************************************************
+     * Determines if lower side of the tile has no path
+     * @param x The x value of the tile that is being considered
+     * @param y The y value of the tile that is being considered
+     * @return True if there are no conflicting tiles
+     */
     private boolean validDown(int x, int y) {
         // Take care of up and down
         if (y > 0) {
-            if (isPath[x][y-1]) {
+            if (mazeTile[x][y-1].isPath) {
                 return false;
             }
             if (x < mazeWidth-1) {
-                if (isPath[x+1][y-1]) {
+                if (mazeTile[x+1][y-1].isPath) {
                     return false;
                 }
             }
             if (x > 0) {
-                if (isPath[x-1][y-1]) {
+                if (mazeTile[x-1][y-1].isPath) {
                     return false;
                 }
             }
