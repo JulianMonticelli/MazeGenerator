@@ -372,10 +372,18 @@ public class Maze {
         return true;
     }
     
+    /***************************************************************************
+     * Returns the maze width in pixels
+     * @return the maze width in pixels
+     */
     public int getMazeSizeX() {
         return mazeWidth * mazeTileSize;
     }
     
+    /***************************************************************************
+     * Returns the maze height in pixels
+     * @return the maze height in pixels
+     */
     public int getMazeSizeY() {
         return mazeHeight * mazeTileSize;
     }

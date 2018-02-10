@@ -55,7 +55,6 @@ public class MazeGenerator extends JFrame {
         this.add(mazePanel);
         this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         this.pack();
-        mazePanel.repaint();
     }
     
     
@@ -126,7 +125,7 @@ public class MazeGenerator extends JFrame {
                 "New Maze", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
             usesSeed = true;
         }
-        while (!validSeed) {
+        while (!validSeed && usesSeed) {
             String input = JOptionPane.showInputDialog(null, 
                     "Enter a new seed", "New Maze", 
                     JOptionPane.QUESTION_MESSAGE);
@@ -194,8 +193,7 @@ public class MazeGenerator extends JFrame {
      * @param file The file to export to.
      */
     private void exportMazeAsPNG(File file) {
-        BufferedImage mazeImage = new BufferedImage(mazePanel.getWidth(),
-            mazePanel.getHeight(), BufferedImage.TYPE_INT_ARGB);
+        BufferedImage mazeImage = mazePanel.getBufferedImage();
         mazePanel.paint(mazeImage.createGraphics());
         try {
             ImageIO.write(mazeImage, "png", file);
